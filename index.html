@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ziling Chen | Personal Homepage</title>
+
+  <!-- Tailwind (CDN, no build) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Vue 3 (CDN) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+  <!-- GSAP (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+
+  <style>
+    :root{
+      --ink: #354E64;
+      --accent: #B3584D;
+
+      /* Lightened “sunset gold + ocean blue” */
+      --bg-a: rgba(250, 244, 238, 1);
+      --bg-b: rgba(233, 247, 255, 1);
+
+      --glass: rgba(255,255,255,.55);
+      --glass2: rgba(255,255,255,.38);
+      --stroke: rgba(53,78,100,.18);
+      --shadow: 0 18px 60px rgba(22, 50, 68, .12);
+    }
+
+    html, body { height: 100%; }
+    body{
+      color: var(--ink);
+      background:
+        radial-gradient(900px 600px at 10% 5%, rgba(255, 210, 154, .28), transparent 55%),
+        radial-gradient(900px 700px at 85% 18%, rgba(140, 210, 255, .26), transparent 55%),
+        radial-gradient(800px 650px at 55% 95%, rgba(255, 170, 170, .18), transparent 55%),
+        linear-gradient(180deg, var(--bg-a), var(--bg-b));
+      overflow-x: hidden;
+    }
+
+    /* Subtle grain */
+    .grain:before{
+      content:"";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: .12;
+      mix-blend-mode: multiply;
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+      background-size: 220px 220px;
+    }
+
+    /* Liquid blobs */
+    .blob{
+      position: absolute;
+      width: 520px;
+      height: 520px;
+      border-radius: 9999px;
+      filter: blur(30px);
+      opacity: .55;
+      transform: translate3d(0,0,0);
+      will-change: transform;
+    }
+
+    /* Glass */
+    .glass{
+      background: linear-gradient(180deg, var(--glass), var(--glass2));
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(53,78,100,.22);
+      border-radius: 999px;
+      border: 2px solid rgba(255,255,255,.4);
+    }
+
+    /* Custom cursor */
+    .cursor{
+      position: fixed;
+      top: 0; left: 0;
+      width: 26px; height: 26px;
+      border-radius: 999px;
+      border: 1px solid rgba(53,78,100,.55);
+      mix-blend-mode: difference;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 6px rgba(255,255,255,.08);
+      transition: width .18s ease, height .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .cursor.is-hover{
+      width: 46px; height: 46px;
+      border-color: rgba(179,88,77,.9);
+      box-shadow: 0 0 0 10px rgba(179,88,77,.10);
+    }
+
+    html{ scroll-behavior: smooth; }
+    section { scroll-margin-top: 90px; } /* to avoid fixed nav overlap */
+
+    /* Marquee */
+    .marquee{
+      mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    }
+    .marquee-track{
+      display: flex;
+      width: max-content;
+      gap: .75rem;
+      align-items: center;
+      will-change: transform;
+    }
+
+    /* Timeline dots */
+    .dot{
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(53,78,100,.45);
+      box-shadow: 0 0 0 6px rgba(53,78,100,.10);
+    }
+    .dot.lead{ background: rgba(179,88,77,.75); box-shadow: 0 0 0 6px rgba(179,88,77,.10); }
+
+    /* Hide details overflow animation */
+    .reveal{ overflow: hidden; }
+  </style>
+</head>
+
+<body class="grain font-display">
+  <div id="app" class="relative z-10"></div>
+
+  <!-- Custom cursor -->
+  <div class="cursor" id="cursor"></div>
+
+  <script>
+    /***********************************************************************
+     * Easy Config: profileData（非技术用户只改这里即可）
+     ***********************************************************************/
+    const profileData = {
+      name: "Ziling Chen",
+      title: "MQM Candidate · Business Analytics & Strategy",
+      location: "New York · San Jose · Shanghai",
+      email: "OliviaCZL2002@outlook.com",
+      linkedin: "www.linkedin.com/in/ziling-chen-7775a6227",
+
+      theme: {
+        text: "#354E64",
+        accent: "#B3584D",
+        // Put the sunset photo (your first image) in the same folder as index.html
+        // Rename it to sunset_palette.png (or change name here)
+        backgroundImage: "sunset_palette.png",
+      },
+
+      hero: {
+        schoolLine: "Duke University · The Fuqua School of Business",
+        programLine: "Master of Quantitative Management (Business Analytics, Strategy)",
+        gradLine: "Expected May 2026",
+        // Avatar image filename in the same folder (you already have 111.jpg)
+        photo: "111.jpg",
+        photoAlt: "Ziling Chen",
+        tagline: "High-energy, hands-on builder · Data-driven synthesis · Entrepreneurial mindset",
+      },
+
+      about: {
+        intro:
+`Hi! Welcome to Ziling’s Channel. I’m a high-energy, hands-on builder who thrives in fast-moving environments. I enjoy collecting, structuring, and synthesizing information to make data-driven decisions, especially in situations filled with ambiguity. With a strong entrepreneurial mindset and deep appreciation for team spirit, I love working with others to turn ideas into execution and push projects from zero to one.`,
+        tags: ["High-energy", "Data-driven", "Proactive", "Entrepreneurial", "Collaborative"],
+        stats: [
+          { label: "Now", value: "Duke Fuqua", hint: "MQM: Business Analytics & Strategy" },
+          { label: "City", value: "New York · San Jose · Shanghai", hint: "Building across cities & time zones" },
+        ],
+      },
+
+      experience: [
+        {
+          time: "Summer 2025",
+          org: "IDG Capital",
+          role: "Venture Building Group Intern",
+          details: [
+            "Built and maintained a Python-based data collection & cleaning pipeline covering 2,000+ companies, enabling scalable market and diligence analysis.",
+            "Synthesized primary/secondary research across IP incubation & brand-building sectors; produced comparable company profiles and prioritization frameworks.",
+            "Revised government-submitted incubation program applications with mentors; aligned materials with regulatory/evaluation criteria and contributed to approval."
+          ]
+        },
+        {
+          time: "Summer 2024",
+          org: "Jingdong Financial Technology Holdings Co., Ltd",
+          role: "Strategic Operations Intern",
+          details: [
+            "Analyzed monthly credit card performance metrics across partner banks using SQL to support data-driven product and partner strategy decisions.",
+            "Built and iterated BI dashboards to monitor daily performance and surface actionable insights for operations."
+          ]
+        },
+        {
+          time: "Summer 2022",
+          org: "L.E.K Consulting Limited",
+          role: "Business Analysis Intern",
+          details: [
+            "Compiled and analyzed information on 200 pharma companies to support a foreign client in prioritizing China-based partners with qualified local production."
+          ]
+        }
+      ],
+
+      leadership: [
+        {
+          time: "Aug – Nov 2025",
+          org: "Xscent Venture Challenge",
+          role: "Founder & Lead",
+          details: [
+            "Created Duke’s first fully student-built and led startup competition.",
+            "Designed an end-to-end program with 300+ onsite attendees, 50+ applicants, spanning AI, Biotech, FinTech, Gaming, E-commerce, and Academia.",
+            "Directed a team of 20; built a repeatable, data-driven event model from first principles (pipeline, rubric, marketing, logistics)."
+          ]
+        },
+        {
+          time: "Jun 2025 – Present",
+          org: "DukeCEO",
+          role: "Secretary · Director of Brand & Content",
+          details: [
+            "Owned execution of 10+ entrepreneurship-focused activities; managed workflows spanning budgeting, funding coordination, and team management."
+          ]
+        },
+        {
+          time: "Jun 2025 – Present",
+          org: "Duke Chinese Student & Scholars Association",
+          role: "Event Council Co-Chair",
+          details: [
+            "Orchestrating campus events including Mid-autumn Festival Gala and Duke Spring Festival Gala."
+          ]
+        }
+      ],
+
+      skills: [
+        "SQL", "Python", "R Studio", "STATA", "Tableau", "Advanced Excel",
+        "Data Visualization", "Presentation", "Leadership",
+        "Market Research", "Team Spirit", "BI Dashboard", "Management"
+      ],
+
+      footer: {
+        line1: "Let’s build something with clarity, speed, and taste.",
+        line2: "If you’re shipping in ambiguity, I’m interested.",
+      }
+    };
+  </script>
+
+  <script>
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
+
+    createApp({
+      setup() {
+        const expOpen = ref(new Set());
+        const leadOpen = ref(new Set());
+
+        const toggleSet = (setRef, idx) => {
+          const s = new Set(setRef.value);
+          if (s.has(idx)) s.delete(idx);
+          else s.add(idx);
+          setRef.value = s;
+        };
+
+        const bgStyle = computed(() => {
+          const img = profileData.theme.backgroundImage?.trim();
+          if (!img) return {};
+          return {
+            backgroundImage: `url('${img}')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: 0.20
+          };
+        });
+
+        const safeLink = (raw) => {
+          if (!raw) return "#";
+          const t = raw.trim();
+          if (t.startsWith("http://") || t.startsWith("https://")) return t;
+          return "https://" + t;
+        };
+
+        const initCursorAndMagnet = () => {
+          const cursor = document.getElementById("cursor");
+          let x = window.innerWidth / 2, y = window.innerHeight / 2;
+          let tx = x, ty = y;
+
+          const tick = () => {
+            x += (tx - x) * 0.16;
+            y += (ty - y) * 0.16;
+            cursor.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+            requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+
+          window.addEventListener("mousemove", (e) => {
+            tx = e.clientX;
+            ty = e.clientY;
+          }, { passive: true });
+
+          const hoverables = document.querySelectorAll("[data-magnet]");
+          hoverables.forEach((el) => {
+            const strength = 0.25;
+            let bounds = null;
+
+            const onEnter = () => {
+              cursor.classList.add("is-hover");
+              bounds = el.getBoundingClientRect();
+              gsap.to(el, { duration: 0.25, scale: 1.02, ease: "power2.out" });
+            };
+            const onLeave = () => {
+              cursor.classList.remove("is-hover");
+              gsap.to(el, { x: 0, y: 0, duration: 0.35, ease: "power3.out" });
+              gsap.to(el, { scale: 1, duration: 0.25, ease: "power2.out" });
+            };
+            const onMove = (e) => {
+              if (!bounds) bounds = el.getBoundingClientRect();
+              const mx = e.clientX - (bounds.left + bounds.width / 2);
+              const my = e.clientY - (bounds.top + bounds.height / 2);
+              gsap.to(el, { x: mx * strength, y: my * strength, duration: 0.35, ease: "power3.out" });
+            };
+
+            el.addEventListener("mouseenter", onEnter);
+            el.addEventListener("mouseleave", onLeave);
+            el.addEventListener("mousemove", onMove);
+          });
+        };
+
+        const animateEntrances = () => {
+          gsap.registerPlugin(ScrollTrigger);
+
+          gsap.to(".blob-a", { x: 110, y: 40, duration: 8.5, yoyo: true, repeat: -1, ease: "sine.inOut" });
+          gsap.to(".blob-b", { x: -90, y: 80, duration: 10.5, yoyo: true, repeat: -1, ease: "sine.inOut" });
+          gsap.to(".blob-c", { x: 60, y: -70, duration: 9.5, yoyo: true, repeat: -1, ease: "sine.inOut" });
+
+          gsap.from("[data-hero]", {
+            opacity: 0,
+            y: 18,
+            duration: 1.0,
+            stagger: 0.08,
+            ease: "power3.out"
+          });
+
+          document.querySelectorAll("[data-reveal]").forEach((el) => {
+            gsap.from(el, {
+              scrollTrigger: { trigger: el, start: "top 82%" },
+              opacity: 0,
+              y: 20,
+              duration: 0.9,
+              ease: "power3.out"
+            });
+          });
+
+          gsap.from(".timeline-line", {
+            scrollTrigger: { trigger: "#timelines", start: "top 80%" },
+            scaleY: 0,
+            transformOrigin: "top",
+            duration: 1.2,
+            ease: "power3.out"
+          });
+        };
+
+        const animateAccordions = () => {
+          const run = () => {
+            document.querySelectorAll("[data-exp-panel]").forEach((panel) => {
+              const open = panel.getAttribute("data-open") === "true";
+              gsap.to(panel, {
+                height: open ? panel.scrollHeight : 0,
+                duration: 0.45,
+                ease: "power3.inOut"
+              });
+            });
+            document.querySelectorAll("[data-lead-panel]").forEach((panel) => {
+              const open = panel.getAttribute("data-open") === "true";
+              gsap.to(panel, {
+                height: open ? panel.scrollHeight : 0,
+                duration: 0.45,
+                ease: "power3.inOut"
+              });
+            });
+          };
+          nextTick(() => run());
+          return run;
+        };
+
+        const initMarquee = () => {
+          const track = document.querySelector(".marquee-track");
+          if (!track) return;
+
+          const original = track.innerHTML;
+          track.innerHTML = original + original;
+
+          const totalWidth = track.scrollWidth / 2;
+          gsap.to(track, {
+            x: -totalWidth,
+            duration: 22,
+            ease: "none",
+            repeat: -1
+          });
+        };
+
+        const onToggleExp = async (idx) => {
+          toggleSet(expOpen, idx);
+          await nextTick();
+          accordionRerun();
+        };
+
+        const onToggleLead = async (idx) => {
+          toggleSet(leadOpen, idx);
+          await nextTick();
+          accordionRerun();
+        };
+
+        let accordionRerun = () => {};
+
+        onMounted(async () => {
+          await nextTick();
+          initCursorAndMagnet();
+          animateEntrances();
+          accordionRerun = animateAccordions();
+          initMarquee();
+        });
+
+        return {
+          profileData,
+          expOpen,
+          leadOpen,
+          bgStyle,
+          safeLink,
+          onToggleExp,
+          onToggleLead
+        };
+      },
+
+      template: `
+        <div class="relative">
+          <!-- Soft image overlay (optional) -->
+          <div v-if="profileData.theme.backgroundImage" class="fixed inset-0 pointer-events-none z-0">
+            <div class="absolute inset-0" :style="bgStyle"></div>
+            <div class="absolute inset-0"
+              style="background: radial-gradient(900px 650px at 15% 10%, rgba(255,210,154,.25), transparent 60%),
+                     radial-gradient(900px 700px at 85% 20%, rgba(140,210,255,.22), transparent 62%),
+                     linear-gradient(180deg, rgba(250,244,238,.86), rgba(233,247,255,.86));">
+            </div>
+          </div>
+
+          <!-- Liquid blobs -->
+          <div class="pointer-events-none fixed inset-0 z-0">
+            <div class="blob blob-a" style="left:-120px; top: 40px; background: radial-gradient(circle at 30% 30%, rgba(255,190,120,.55), rgba(255,190,120,0) 60%);"></div>
+            <div class="blob blob-b" style="right:-160px; top: 140px; background: radial-gradient(circle at 30% 30%, rgba(120,200,255,.50), rgba(120,200,255,0) 60%);"></div>
+            <div class="blob blob-c" style="left: 38%; bottom:-220px; background: radial-gradient(circle at 30% 30%, rgba(255,150,150,.36), rgba(255,150,150,0) 62%);"></div>
+          </div>
+
+          <!-- Floating Nav (top-right, glass) -->
+          <header class="fixed top-4 right-4 z-50">
+            <div class="relative">
+              <nav class="glass rounded-full px-4 py-2.5 flex items-center gap-4 text-sm"
+                   style="border: 1px solid rgba(53,78,100,.14); box-shadow: 0 18px 60px rgba(22, 50, 68, .10);">
+                <a href="#about" class="opacity-80 hover:opacity-100 transition" data-magnet>About</a>
+                <a href="#timelines" class="opacity-80 hover:opacity-100 transition" data-magnet>Experience</a>
+                <a href="#skills" class="opacity-80 hover:opacity-100 transition" data-magnet>Skills</a>
+                <a href="#contact" class="opacity-80 hover:opacity-100 transition" data-magnet>Contact</a>
+
+                <span class="mx-1 w-px h-4 bg-black/10"></span>
+
+                <a href="#top" class="opacity-70 hover:opacity-100 transition" data-magnet>Top</a>
+              </nav>
+
+              <!-- subtle liquid highlight behind nav -->
+              <div class="pointer-events-none absolute -inset-2 rounded-full blur-xl opacity-60"
+                   style="background:
+                     radial-gradient(240px 120px at 20% 30%, rgba(255,210,154,.35), transparent 60%),
+                     radial-gradient(240px 120px at 80% 40%, rgba(140,210,255,.28), transparent 62%);">
+              </div>
+            </div>
+          </header>
+
+          <!-- HERO -->
+          <main id="top" class="relative z-10 px-5 sm:px-8 pt-10 sm:pt-14">
+            <section class="max-w-6xl mx-auto">
+              <div class="glass rounded-[28px] p-6 sm:p-9 relative overflow-hidden">
+                <div class="absolute inset-0 pointer-events-none"
+                     style="background: radial-gradient(700px 420px at 10% 15%, rgba(255,210,154,.25), transparent 60%),
+                            radial-gradient(700px 460px at 88% 20%, rgba(140,210,255,.22), transparent 62%);">
+                </div>
+
+                <div class="relative grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+                  <div class="md:col-span-7">
+                    <p class="text-sm opacity-70" data-hero>{{ profileData.hero.schoolLine }}</p>
+                    <h1 class="text-[44px] sm:text-[60px] leading-[1.02] font-semibold tracking-tight mt-2" data-hero>
+                      {{ profileData.name }}
+                    </h1>
+                    <p class="mt-4 text-base sm:text-lg opacity-85 max-w-xl" data-hero>
+                      {{ profileData.hero.tagline }}
+                    </p>
+
+                    <div class="mt-6 flex flex-wrap items-center gap-3" data-hero>
+                      <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
+                            style="background: rgba(53,78,100,.08); border: 1px solid rgba(53,78,100,.12);">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full" style="background: rgba(53,78,100,.55)"></span>
+                        {{ profileData.title }}
+                      </span>
+                      <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
+                            style="background: rgba(179,88,77,.08); border: 1px solid rgba(179,88,77,.14); color: var(--ink)">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full" :style="{background: profileData.theme.accent}"></span>
+                        {{ profileData.hero.gradLine }}
+                      </span>
+                    </div>
+
+                    <div class="mt-7 flex flex-wrap gap-3" data-hero>
+                      <a :href="'mailto:' + profileData.email"
+                         class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium glass"
+                         style="border: 1px solid rgba(179,88,77,.30);"
+                         data-magnet>
+                        <span class="inline-block w-2 h-2 rounded-full" :style="{background: profileData.theme.accent}"></span>
+                        Email me
+                      </a>
+
+                      <a :href="safeLink(profileData.linkedin)" target="_blank" rel="noopener"
+                         class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+                         style="background: rgba(53,78,100,.08); border: 1px solid rgba(53,78,100,.14);"
+                         data-magnet>
+                        <span class="inline-block w-2 h-2 rounded-full" style="background: rgba(53,78,100,.55)"></span>
+                        LinkedIn
+                      </a>
+                    </div>
+                  </div>
+
+                  <div class="md:col-span-5">
+                    <div class="relative">
+                      <div class="absolute -inset-4 rounded-[28px] blur-2xl opacity-50"
+                           style="background: radial-gradient(circle at 30% 30%, rgba(255,210,154,.45), transparent 60%),
+                                  radial-gradient(circle at 70% 70%, rgba(140,210,255,.38), transparent 62%);">
+                      </div>
+
+                      <div class="glass rounded-[28px] p-3">
+                        <img :src="profileData.hero.photo"
+                             :alt="profileData.hero.photoAlt"
+                             class="w-full aspect-[4/5] object-cover rounded-[22px]" />
+                        <div class="mt-3 px-2 pb-1">
+                          <p class="text-xs opacity-70">
+                            {{ profileData.location }} · {{ profileData.hero.programLine }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- ABOUT -->
+            <section id="about" class="max-w-6xl mx-auto mt-10 sm:mt-14" data-reveal>
+              <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-5 glass rounded-[26px] p-6 sm:p-7">
+                  <h2 class="text-xl font-semibold tracking-tight">About</h2>
+                  <p class="mt-4 text-[15px] leading-relaxed opacity-90 whitespace-pre-line">
+                    {{ profileData.about.intro }}
+                  </p>
+
+                  <div class="mt-6 flex flex-wrap gap-2">
+                    <span v-for="(t, i) in profileData.about.tags" :key="'tag'+i"
+                          class="px-3 py-1.5 rounded-full text-xs glass"
+                          :style="{
+                            border: '1px solid ' + (i % 2 === 0 ? 'rgba(53,78,100,.12)' : 'rgba(179,88,77,.14)'),
+                            background: i % 2 === 0 ? 'rgba(53,78,100,.06)' : 'rgba(179,88,77,.06)'
+                          }">
+                      {{ t }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div v-for="(s, i) in profileData.about.stats" :key="i"
+                       class="glass rounded-[26px] p-6 sm:p-7 relative overflow-hidden">
+                    <div class="absolute inset-0 opacity-60 pointer-events-none"
+                         :style="{
+                           background: i % 2 === 0
+                             ? 'radial-gradient(500px 220px at 15% 10%, rgba(255,210,154,.25), transparent 62%)'
+                             : 'radial-gradient(500px 220px at 85% 15%, rgba(140,210,255,.22), transparent 62%)'
+                         }">
+                    </div>
+                    <div class="relative">
+                      <p class="text-xs uppercase tracking-wider opacity-65">{{ s.label }}</p>
+                      <p class="mt-3 text-3xl font-semibold tracking-tight">{{ s.value }}</p>
+                      <p class="mt-2 text-sm opacity-80">{{ s.hint }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- TIMELINES -->
+            <section id="timelines" class="max-w-6xl mx-auto mt-10 sm:mt-14" data-reveal>
+              <div class="glass rounded-[28px] p-6 sm:p-9">
+                <div class="flex items-end justify-between gap-6">
+                  <div>
+                    <h2 class="text-xl font-semibold tracking-tight">Experience & Leadership</h2>
+                    <p class="mt-2 text-sm opacity-70">
+                      Minimal timelines · Click an item to expand details
+                    </p>
+                  </div>
+                  <div class="hidden sm:flex gap-2 text-xs opacity-70">
+                    <span class="inline-flex items-center gap-2">
+                      <span class="dot"></span> Experience
+                    </span>
+                    <span class="inline-flex items-center gap-2">
+                      <span class="dot lead"></span> Leadership
+                    </span>
+                  </div>
+                </div>
+
+                <div class="mt-7 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  <!-- Experience (left) -->
+                  <div class="lg:col-span-6 relative">
+                    <div class="absolute left-3 top-2 bottom-2 w-px bg-black/10 timeline-line"></div>
+
+                    <h3 class="text-sm font-semibold tracking-wide opacity-80 mb-5">
+                      Experience
+                    </h3>
+
+                    <div v-for="(item, idx) in profileData.experience" :key="'exp'+idx"
+                         class="relative pl-10 pb-6">
+                      <div class="absolute left-[9px] top-[8px] dot"></div>
+
+                      <div class="flex items-start justify-between gap-3">
+                        <div>
+                          <p class="text-xs opacity-70">{{ item.time }}</p>
+                          <button class="text-left mt-1 group" @click="onToggleExp(idx)" data-magnet>
+                            <p class="text-base font-semibold tracking-tight group-hover:opacity-90">
+                              {{ item.org }}
+                            </p>
+                            <p class="text-sm opacity-75">{{ item.role }}</p>
+                          </button>
+                        </div>
+
+                        <button class="shrink-0 mt-2 text-xs px-2.5 py-1 rounded-full"
+                                :style="{
+                                  background: expOpen.has(idx) ? 'rgba(53,78,100,.10)' : 'rgba(53,78,100,.06)',
+                                  border: '1px solid rgba(53,78,100,.12)'
+                                }"
+                                @click="onToggleExp(idx)"
+                                data-magnet>
+                          {{ expOpen.has(idx) ? 'Close' : 'Open' }}
+                        </button>
+                      </div>
+
+                      <div class="reveal mt-3" data-exp-panel :data-open="expOpen.has(idx)" style="height:0;">
+                        <ul class="pl-4 list-disc text-sm leading-relaxed opacity-90 space-y-2 pb-1">
+                          <li v-for="(d, j) in item.details" :key="'expd'+idx+'-'+j">{{ d }}</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Leadership (right) -->
+                  <div class="lg:col-span-6 relative">
+                    <div class="absolute left-3 top-2 bottom-2 w-px bg-black/10 timeline-line"></div>
+
+                    <h3 class="text-sm font-semibold tracking-wide opacity-80 mb-5">
+                      Leadership & Involvement
+                    </h3>
+
+                    <div v-for="(item, idx) in profileData.leadership" :key="'lead'+idx"
+                         class="relative pl-10 pb-6">
+                      <div class="absolute left-[9px] top-[8px] dot lead"></div>
+
+                      <div class="flex items-start justify-between gap-3">
+                        <div>
+                          <p class="text-xs opacity-70">{{ item.time }}</p>
+                          <button class="text-left mt-1 group" @click="onToggleLead(idx)" data-magnet>
+                            <p class="text-base font-semibold tracking-tight group-hover:opacity-90">
+                              {{ item.org }}
+                            </p>
+                            <p class="text-sm opacity-75">{{ item.role }}</p>
+                          </button>
+                        </div>
+
+                        <button class="shrink-0 mt-2 text-xs px-2.5 py-1 rounded-full"
+                                :style="{
+                                  background: leadOpen.has(idx) ? 'rgba(179,88,77,.10)' : 'rgba(179,88,77,.06)',
+                                  border: '1px solid rgba(179,88,77,.14)'
+                                }"
+                                @click="onToggleLead(idx)"
+                                data-magnet>
+                          {{ leadOpen.has(idx) ? 'Close' : 'Open' }}
+                        </button>
+                      </div>
+
+                      <div class="reveal mt-3" data-lead-panel :data-open="leadOpen.has(idx)" style="height:0;">
+                        <ul class="pl-4 list-disc text-sm leading-relaxed opacity-90 space-y-2 pb-1">
+                          <li v-for="(d, j) in item.details" :key="'leadd'+idx+'-'+j">{{ d }}</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </section>
+
+            <!-- SKILLS -->
+            <section id="skills" class="max-w-6xl mx-auto mt-10 sm:mt-14" data-reveal>
+              <div class="glass rounded-[28px] p-6 sm:p-9">
+                <div class="flex items-end justify-between gap-6">
+                  <div>
+                    <h2 class="text-xl font-semibold tracking-tight">Skills</h2>
+                  </div>
+                </div>
+
+                <div class="mt-6 marquee">
+                  <div class="marquee-track">
+                    <span v-for="(s, i) in profileData.skills" :key="'sk'+i"
+                          class="px-3 py-2 rounded-full text-sm glass"
+                          style="border: 1px solid rgba(53,78,100,.12);">
+                      {{ s }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- FOOTER / CONTACT -->
+            <section id="contact" class="max-w-6xl mx-auto mt-10 sm:mt-14 pb-10" data-reveal>
+              <div class="glass rounded-[28px] overflow-hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-12">
+                  <div class="lg:col-span-7 p-7 sm:p-10">
+                    <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight">
+                      Contact
+                    </h2>
+                    <p class="mt-4 text-sm sm:text-base opacity-80 max-w-xl">
+                      {{ profileData.footer.line1 }}<br />
+                      {{ profileData.footer.line2 }}
+                    </p>
+
+                    <div class="mt-7 flex flex-wrap gap-3">
+                      <a :href="'mailto:' + profileData.email"
+                         class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+                         :style="{ background: profileData.theme.accent, color: 'white' }"
+                         data-magnet>
+                        Email
+                      </a>
+
+                      <a :href="safeLink(profileData.linkedin)" target="_blank" rel="noopener"
+                         class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+                         style="background: rgba(255,255,255,.55); border: 1px solid rgba(53,78,100,.14);"
+                         data-magnet>
+                        LinkedIn
+                      </a>
+                    </div>
+
+                    <div class="mt-8 text-sm opacity-75 space-y-2">
+                      <p><span class="opacity-60">Email:</span> <span class="font-medium">{{ profileData.email }}</span></p>
+                      <p><span class="opacity-60">LinkedIn:</span> <span class="font-medium">{{ profileData.linkedin }}</span></p>
+                      <p class="pt-2 text-xs opacity-60">
+                        © {{ new Date().getFullYear() }} {{ profileData.name }} · Liquid Void (light) · Glass + Grain
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="lg:col-span-5 relative min-h-[260px] lg:min-h-[420px]">
+                    <div class="absolute inset-0"
+                         style="background:
+                           radial-gradient(600px 400px at 20% 30%, rgba(255,210,154,.55), transparent 60%),
+                           radial-gradient(600px 420px at 80% 25%, rgba(140,210,255,.50), transparent 62%),
+                           linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,.35));
+                         ">
+                    </div>
+
+                    <div class="absolute inset-0 p-7 sm:p-10 flex flex-col justify-end">
+                      <div class="glass rounded-[22px] p-5">
+                        <p class="text-sm opacity-80">
+                          Currently: <span class="font-semibold">{{ profileData.hero.schoolLine }}</span>
+                        </p>
+                        <p class="mt-2 text-sm opacity-75">
+                          Focus: analytics + strategy · builder energy · team-first execution
+                        </p>
+                        <a href="#top"
+                           class="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+                           style="background: rgba(53,78,100,.08); border: 1px solid rgba(53,78,100,.14);"
+                           data-magnet>
+                          Back to top ↑
+                        </a>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </section>
+          </main>
+        </div>
+      `
+    }).mount("#app");
+  </script>
+</body>
+</html>
